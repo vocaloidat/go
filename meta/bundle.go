@@ -109,8 +109,12 @@ func (b *Bundle) OperationsMetas() []xdr.OperationMeta {
 	switch b.TransactionMeta.V {
 	case 0:
 		return b.TransactionMeta.MustOperations()
-	default:
+	case 1:
 		return b.TransactionMeta.V1.Operations
+	case 2:
+		return b.TransactionMeta.V2.Operations
+	default:
+		panic("Unknown meta")
 	}
 }
 
@@ -135,8 +139,11 @@ func (b *Bundle) changes(target xdr.LedgerKey, maxOp int) []xdr.LedgerEntryChang
 	//allChanges accumulates all ledger changes
 	allChanges := b.FeeMeta
 
-	if b.TransactionMeta.V > 0 {
+	if b.TransactionMeta.V == 1 {
 		allChanges = append(allChanges, b.TransactionMeta.V1.TxChanges...)
+	}
+	if b.TransactionMeta.V == 2 {
+		allChanges = append(allChanges, b.TransactionMeta.V2.TxChangesBefore...)
 	}
 
 	for i, op := range b.OperationsMetas() {
@@ -144,6 +151,10 @@ func (b *Bundle) changes(target xdr.LedgerKey, maxOp int) []xdr.LedgerEntryChang
 			break
 		}
 		allChanges = append(allChanges, op.Changes...)
+	}
+
+	if b.TransactionMeta.V == 2 {
+		allChanges = append(allChanges, b.TransactionMeta.V2.TxChangesAfter...)
 	}
 
 	return filterChanges(allChanges, target)
