@@ -124,7 +124,7 @@ func (s *System) verifyState(graphOffers map[xdr.Int64]xdr.OfferEntry) error {
 		s.session.GetArchive(),
 		&io.MemoryTempSet{},
 		ledgerSequence,
-		s.maxStreamRetries,
+		1000000, //s.maxStreamRetries,
 	)
 	if err != nil {
 		return errors.Wrap(err, "Error running io.MakeSingleLedgerStateReader")
