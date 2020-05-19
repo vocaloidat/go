@@ -162,7 +162,9 @@ func (action *Action) baseURL() *url.URL {
 // support/render/hal package.
 type indexActionQueryParams struct {
 	AccountID        string
+	OperationID      int64
 	LedgerID         int32
+	TxHash           string
 	PagingParams     db2.PageQuery
 	IncludeFailedTxs bool
 	Signer           string
@@ -208,7 +210,7 @@ func (w *web) getTransactionPage(ctx context.Context, qp *indexActionQueryParams
 	return actions.TransactionPage(ctx, &history.Q{horizonSession}, qp.AccountID, qp.LedgerID, qp.IncludeFailedTxs, qp.PagingParams)
 }
 
-// getTransactionRecord returns a single transaction resource.
+// getTransactionResource returns a single transaction resource.
 func (w *web) getTransactionResource(ctx context.Context, qp *showActionQueryParams) (interface{}, error) {
 	horizonSession, err := w.horizonSession(ctx)
 	if err != nil {
@@ -225,5 +227,28 @@ func (w *web) streamTransactions(ctx context.Context, s *sse.Stream, qp *indexAc
 		return errors.Wrap(err, "getting horizon db session")
 	}
 
-	return actions.StreamTransactions(ctx, s, &history.Q{horizonSession}, qp.AccountID, qp.LedgerID, qp.IncludeFailedTxs, qp.PagingParams)
+	return actions.StreamTransactions(ctx, s, &history.Q{horizonSession},
+		qp.AccountID, qp.LedgerID, qp.IncludeFailedTxs, qp.PagingParams)
+}
+
+// getEffectsPage returns a page containing the transaction records of an account or a ledger.
+func (w *web) getEffectsPage(ctx context.Context, qp *indexActionQueryParams) (interface{}, error) {
+	horizonSession, err := w.horizonSession(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting horizon db session")
+	}
+
+	return actions.EffectsPage(ctx, &history.Q{horizonSession},
+		qp.AccountID, qp.OperationID, qp.TxHash, qp.LedgerID, qp.PagingParams)
+}
+
+// streamEffects streams the transaction records of an account or a ledger.
+func (w *web) streamEffects(ctx context.Context, s *sse.Stream, qp *indexActionQueryParams) error {
+	horizonSession, err := w.horizonSession(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting horizon db session")
+	}
+
+	return actions.StreamEffects(ctx, s, &history.Q{horizonSession},
+		qp.AccountID, qp.OperationID, qp.TxHash, qp.LedgerID, qp.PagingParams)
 }

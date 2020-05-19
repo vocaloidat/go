@@ -216,7 +216,7 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 	// emptiness. Without it, requesting `/accounts//payments` return all payments!
 	r.Group(func(r chi.Router) {
 		r.Get("/accounts/{account_id:\\w+}/transactions", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
-		r.Get("/accounts/{account_id:\\w+}/effects", EffectIndexAction{}.Handle)
+		r.Get("/accounts/{account_id:\\w+}/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 		r.Get("/accounts/{account_id:\\w+}/trades", TradeIndexAction{}.Handle)
 		r.Group(func(r chi.Router) {
 			r.Use(historyMiddleware)
@@ -236,7 +236,7 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 		r.Route("/{ledger_id}", func(r chi.Router) {
 			r.Get("/", LedgerShowAction{}.Handle)
 			r.Get("/transactions", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
-			r.Get("/effects", EffectIndexAction{}.Handle)
+			r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 			r.Group(func(r chi.Router) {
 				r.Use(historyMiddleware)
 				r.Method(http.MethodGet, "/operations", streamablePageHandler(actions.GetOperationsHandler{
@@ -256,7 +256,7 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 		r.Get("/", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
 		r.Route("/{tx_id}", func(r chi.Router) {
 			r.Get("/", showActionHandler(w.getTransactionResource))
-			r.Get("/effects", EffectIndexAction{}.Handle)
+			r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 			r.Group(func(r chi.Router) {
 				r.Use(historyMiddleware)
 				r.Method(http.MethodGet, "/operations", streamablePageHandler(actions.GetOperationsHandler{
@@ -278,7 +278,7 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 			OnlyPayments:                false,
 		}, streamHandler))
 		r.Get("/{id}", OperationShowAction{}.Handle)
-		r.Get("/{op_id}/effects", EffectIndexAction{}.Handle)
+		r.Get("/{op_id}/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 	})
 
 	r.Group(func(r chi.Router) {
@@ -289,7 +289,7 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 		}, streamHandler))
 
 		// effect actions
-		r.Get("/effects", EffectIndexAction{}.Handle)
+		r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 
 		// trading related endpoints
 		r.Get("/trades", TradeIndexAction{}.Handle)

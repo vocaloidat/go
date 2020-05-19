@@ -127,15 +127,34 @@ func getInt32ParamFromURL(r *http.Request, key string) (int32, error) {
 		return 0, errors.Wrapf(err, "loading %s from URL", key)
 	}
 	if val == "" {
-		return int32(0), nil
+		return 0, nil
 	}
 
 	asI64, err := strconv.ParseInt(val, 10, 32)
 	if err != nil {
-		return int32(0), problem.MakeInvalidFieldProblem(key, errors.New("invalid int32 value"))
+		return 0, problem.MakeInvalidFieldProblem(key, errors.New("invalid int32 value"))
 	}
 
 	return int32(asI64), nil
+}
+
+// getInt64ParamFromURL gets the int64 param with the provided key. It errors
+// if the param value cannot be parsed as int32.
+func getInt64ParamFromURL(r *http.Request, key string) (int64, error) {
+	val, err := hchi.GetStringFromURL(r, key)
+	if err != nil {
+		return 0, errors.Wrapf(err, "loading %s from URL", key)
+	}
+	if val == "" {
+		return 0, nil
+	}
+
+	result, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, problem.MakeInvalidFieldProblem(key, errors.New("invalid int64 value"))
+	}
+
+	return result, nil
 }
 
 // getBoolParamFromURL gets the bool param with the provided key. It errors if
