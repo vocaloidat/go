@@ -49,11 +49,11 @@ func TestChallenge(t *testing.T) {
 
 	assert.Len(t, tx.Signatures(), 1)
 	sourceAccount := tx.SourceAccount()
-	assert.Equal(t, serverKey.Address(), sourceAccount.Address())
+	assert.Equal(t, serverKey.Address(), sourceAccount.address())
 	assert.Equal(t, tx.SeqNum(), int64(0))
 	assert.Equal(t, time.Unix(int64(tx.TimeBounds().MaxTime), 0).Sub(time.Unix(int64(tx.TimeBounds().MinTime), 0)), time.Minute)
 	assert.Len(t, tx.Operations(), 1)
-	assert.Equal(t, account.Address(), tx.Operations()[0].SourceAccount.Address())
+	assert.Equal(t, account.Address(), tx.Operations()[0].SourceAccount.address())
 	assert.Equal(t, xdr.OperationTypeManageData, tx.Operations()[0].Body.Type)
 	assert.Regexp(t, "^testserver auth", tx.Operations()[0].Body.ManageDataOp.DataName)
 

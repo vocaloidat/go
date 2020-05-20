@@ -1,15 +1,13 @@
-package xdr_test
+package xdr
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
-	. "github.com/stellar/go/xdr"
 )
 
 var _ = Describe("xdr.MuxedAccount#Get/SetAddress()", func() {
 	It("returns an empty string when muxed account is nil", func() {
-		addy := (*MuxedAccount)(nil).Address()
+		addy := (*MuxedAccount)(nil).address()
 		Expect(addy).To(Equal(""))
 	})
 
@@ -19,7 +17,7 @@ var _ = Describe("xdr.MuxedAccount#Get/SetAddress()", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(unmuxed.Type).To(Equal(CryptoKeyTypeKeyTypeEd25519))
 		Expect(*unmuxed.Ed25519).To(Equal(Uint256{63, 12, 52, 191, 147, 173, 13, 153, 113, 208, 76, 204, 144, 247, 5, 81, 28, 131, 138, 173, 151, 52, 164, 162, 251, 13, 122, 3, 252, 127, 232, 154}))
-		muxedy := unmuxed.Address()
+		muxedy := unmuxed.address()
 		Expect(muxedy).To(Equal("GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ"))
 
 		var muxed MuxedAccount
@@ -28,7 +26,7 @@ var _ = Describe("xdr.MuxedAccount#Get/SetAddress()", func() {
 		Expect(muxed.Type).To(Equal(CryptoKeyTypeKeyTypeMuxedEd25519))
 		Expect(muxed.Med25519.Id).To(Equal(Uint64(9223372036854775808)))
 		Expect(muxed.Med25519.Ed25519).To(Equal(*unmuxed.Ed25519))
-		muxedy = muxed.Address()
+		muxedy = muxed.address()
 		Expect(muxedy).To(Equal("MCAAAAAAAAAAAAB7BQ2L7E5NBWMXDUCMZSIPOBKRDSBYVLMXGSSKF6YNPIB7Y77ITKNOG"))
 
 		err = muxed.SetAddress("MAAAAAAAAAAAAAB7BQ2L7E5NBWMXDUCMZSIPOBKRDSBYVLMXGSSKF6YNPIB7Y77ITLVL6")
@@ -36,7 +34,7 @@ var _ = Describe("xdr.MuxedAccount#Get/SetAddress()", func() {
 		Expect(muxed.Type).To(Equal(CryptoKeyTypeKeyTypeMuxedEd25519))
 		Expect(muxed.Med25519.Id).To(Equal(Uint64(0)))
 		Expect(muxed.Med25519.Ed25519).To(Equal(*unmuxed.Ed25519))
-		muxedy = muxed.Address()
+		muxedy = muxed.address()
 		Expect(muxedy).To(Equal("MAAAAAAAAAAAAAB7BQ2L7E5NBWMXDUCMZSIPOBKRDSBYVLMXGSSKF6YNPIB7Y77ITLVL6"))
 	})
 
@@ -126,9 +124,9 @@ var _ = Describe("xdr.MuxedAccountd#Equals()", func() {
 var _ = Describe("xdr.AddressToMuxedAccount()", func() {
 	It("works", func() {
 		address := "GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ"
-		muxedAccount, err := AddressToMuxedAccount(address)
+		muxedAccount, err := addressToMuxedAccount(address)
 
-		Expect(muxedAccount.Address()).To(Equal("GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ"))
+		Expect(muxedAccount.address()).To(Equal("GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ"))
 		Expect(err).ShouldNot(HaveOccurred())
 
 		_, err = AddressToAccountId("GCR22L3")

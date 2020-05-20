@@ -119,7 +119,7 @@ func TestOperationTransactionSourceAccount(t *testing.T) {
 			)
 			op := transaction.Envelope.Operations()[0]
 			if len(tc.sourceAccount) > 0 {
-				sourceAccount := xdr.MustMuxedAccountAddress(tc.sourceAccount)
+				sourceAccount := xdr.mustMuxedAccountAddress(tc.sourceAccount)
 				op.SourceAccount = &sourceAccount
 			}
 
@@ -864,7 +864,7 @@ func TestTransactionOperationAllowTrustDetails(t *testing.T) {
 	allowTrustAsset, err := asset.ToAllowTrustOpAsset("COP")
 	tt.NoError(err)
 
-	source := xdr.MustMuxedAccountAddress("GDRW375MAYR46ODGF2WGANQC2RRZL7O246DYHHCGWTV2RE7IHE2QUQLD")
+	source := xdr.mustMuxedAccountAddress("GDRW375MAYR46ODGF2WGANQC2RRZL7O246DYHHCGWTV2RE7IHE2QUQLD")
 
 	testCases := []struct {
 		desc     string

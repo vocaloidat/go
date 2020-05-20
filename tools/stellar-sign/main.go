@@ -67,7 +67,7 @@ func main() {
 	fmt.Println("Transaction Summary:")
 	sourceAccount := txe.SourceAccount()
 	fmt.Printf("  type: %s\n", txe.Type.String())
-	fmt.Printf("  source: %s\n", sourceAccount.Address())
+	fmt.Printf("  source: %s\n", sourceAccount.address())
 	fmt.Printf("  ops: %d\n", len(txe.Operations()))
 	fmt.Printf("  sigs: %d\n", len(txe.Signatures()))
 	if txe.IsFeeBump() {

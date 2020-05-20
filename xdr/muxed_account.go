@@ -7,19 +7,23 @@ import (
 	"github.com/stellar/go/strkey"
 )
 
-// Address returns the strkey encoded form of this MuxedAccount.  This method will
+// Copied from the strkey package. We should use the constant in strkey
+// once it's exposed.
+const versionByteMuxedAccount = 12 << 3 // Base32-encodes to 'M...'
+
+// address returns the strkey encoded form of this MuxedAccount.  This method will
 // panic if the MuxedAccount is backed by a public key of an unknown type.
-func (m *MuxedAccount) Address() string {
-	address, err := m.GetAddress()
+func (m *MuxedAccount) address() string {
+	address, err := m.getAddress()
 	if err != nil {
 		panic(err)
 	}
 	return address
 }
 
-// GetAddress returns the strkey encoded form of this MuxedAccount, and an error
+// getAddress returns the strkey encoded form of this MuxedAccount, and an error
 // if the MuxedAccount is backed by a public key of an unknown type.
-func (m *MuxedAccount) GetAddress() (string, error) {
+func (m *MuxedAccount) getAddress() (string, error) {
 	if m == nil {
 		return "", nil
 	}
@@ -44,7 +48,7 @@ func (m *MuxedAccount) GetAddress() (string, error) {
 		}
 		raw = append(raw, idBytes...)
 		raw = append(raw, ed.Ed25519[:]...)
-		return strkey.Encode(strkey.VersionByteMuxedAccount, raw)
+		return strkey.Encode(versionByteMuxedAccount, raw)
 	default:
 		return "", fmt.Errorf("Unknown muxed account type: %v", m.Type)
 	}
@@ -71,7 +75,7 @@ func (m *MuxedAccount) Equals(other MuxedAccount) bool {
 	}
 }
 
-func MustMuxedAccountAddress(address string) MuxedAccount {
+func mustMuxedAccountAddress(address string) MuxedAccount {
 	m := MuxedAccount{}
 	err := m.SetAddress(address)
 	if err != nil {
@@ -82,7 +86,7 @@ func MustMuxedAccountAddress(address string) MuxedAccount {
 
 // AddressToMuxedAccount returns an MuxedAccount for a given address string.
 // If the address is not valid the error returned will not be nil
-func AddressToMuxedAccount(address string) (MuxedAccount, error) {
+func addressToMuxedAccount(address string) (MuxedAccount, error) {
 	result := MuxedAccount{}
 	err := result.SetAddress(address)
 
@@ -110,7 +114,7 @@ func (m *MuxedAccount) SetAddress(address string) error {
 		*m, err = NewMuxedAccount(CryptoKeyTypeKeyTypeEd25519, ui)
 		return err
 	case 69:
-		raw, err := strkey.Decode(strkey.VersionByteMuxedAccount, address)
+		raw, err := strkey.Decode(versionByteMuxedAccount, address)
 		if err != nil {
 			return err
 		}

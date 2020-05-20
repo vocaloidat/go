@@ -495,7 +495,7 @@ func transactionFromParsedXDR(xdrEnv xdr.TransactionEnvelope) (*GenericTransacti
 		if err != nil {
 			return newTx, errors.New("could not parse inner transaction")
 		}
-		feeBumpAccount := xdrEnv.FeeBumpAccount()
+		feeBumpAccount := xdrEnv.FeeBumpAccount().ToAccountId()
 		newTx.feeBump = &FeeBumpTransaction{
 			envelope: xdrEnv,
 			// A fee-bump transaction has an effective number of operations equal to one plus the
@@ -511,7 +511,7 @@ func transactionFromParsedXDR(xdrEnv xdr.TransactionEnvelope) (*GenericTransacti
 		return newTx, nil
 	}
 
-	sourceAccount := xdrEnv.SourceAccount()
+	sourceAccount := xdrEnv.SourceAccount().ToAccountId()
 
 	totalFee := int64(xdrEnv.Fee())
 	baseFee := totalFee
@@ -711,7 +711,7 @@ func NewFeeBumpTransaction(params FeeBumpTransactionParams) (*FeeBumpTransaction
 		)
 	}
 
-	accountID, err := xdr.AddressToMuxedAccount(tx.feeAccount)
+	accountID, err := xdr.AddressToAccountId(tx.feeAccount)
 	if err != nil {
 		return tx, errors.Wrap(err, "fee account is not a valid address")
 	}
@@ -728,7 +728,7 @@ func NewFeeBumpTransaction(params FeeBumpTransactionParams) (*FeeBumpTransaction
 		Type: xdr.EnvelopeTypeEnvelopeTypeTxFeeBump,
 		FeeBump: &xdr.FeeBumpTransactionEnvelope{
 			Tx: xdr.FeeBumpTransaction{
-				FeeSource: accountID,
+				FeeSource: accountID.ToMuxedAccount(),
 				Fee:       xdr.Int64(tx.maxFee),
 				InnerTx: xdr.FeeBumpTransactionInnerTx{
 					Type: xdr.EnvelopeTypeEnvelopeTypeTx,
