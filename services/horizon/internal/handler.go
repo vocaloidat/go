@@ -288,19 +288,9 @@ func getIndexActionQueryParams(r *http.Request, ingestFailedTransactions bool) (
 		return nil, errors.Wrap(err, "getting account id")
 	}
 
-	opid, err := getInt64ParamFromURL(r, "op_id")
-	if err != nil {
-		return nil, errors.Wrap(err, "getting ledger id")
-	}
-
 	lid, err := getInt32ParamFromURL(r, "ledger_id")
 	if err != nil {
 		return nil, errors.Wrap(err, "getting ledger id")
-	}
-
-	txid, err := actions.GetTransactionID(r, "tx_id")
-	if err != nil {
-		return nil, errors.Wrap(err, "getting transaction id")
 	}
 
 	// account_id and ledger_id are mutually exclusive.
@@ -325,8 +315,6 @@ func getIndexActionQueryParams(r *http.Request, ingestFailedTransactions bool) (
 
 	return &indexActionQueryParams{
 		AccountID:        addr,
-		OperationID:      opid,
-		TxHash:           txid,
 		LedgerID:         lid,
 		PagingParams:     pq,
 		IncludeFailedTxs: includeFailedTx,

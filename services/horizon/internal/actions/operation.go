@@ -12,7 +12,7 @@ import (
 	"github.com/stellar/go/support/render/problem"
 )
 
-// OperationsQuery query struct for offers end-point
+// OperationsQuery query struct for operations end-points
 type OperationsQuery struct {
 	AccountID                 string `schema:"account_id" valid:"accountID,optional"`
 	TransactionHash           string `schema:"tx_id" valid:"transactionHash,optional"`

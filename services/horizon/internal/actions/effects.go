@@ -1,76 +1,68 @@
 package actions
 
 import (
-	"context"
+	"net/http"
 
 	"github.com/stellar/go/services/horizon/internal/db2"
 	"github.com/stellar/go/services/horizon/internal/db2/history"
-	"github.com/stellar/go/services/horizon/internal/render/sse"
 	"github.com/stellar/go/services/horizon/internal/resourceadapter"
 	"github.com/stellar/go/support/errors"
 	"github.com/stellar/go/support/render/hal"
 	"github.com/stellar/go/support/render/problem"
 )
 
-// StreamEffects streams effect records of an account/operation/transaction/ledger
-// identified by accountID/operationID/transactionHash/ledgerID based on pq.
-func StreamEffects(ctx context.Context, s *sse.Stream, hq *history.Q,
-	accountID string, operationID int64, transactionHash string, ledgerID int32, pq db2.PageQuery) error {
-	allRecords, err := loadEffectRecords(hq, accountID, operationID, transactionHash, ledgerID, pq)
-	if err != nil {
-		return errors.Wrap(err, "loading transaction records")
-	}
-
-	ledgers, err := loadEffectLedgers(hq, allRecords)
-	if err != nil {
-		return errors.Wrap(err, "loading ledgers")
-	}
-
-	s.SetLimit(int(pq.Limit))
-	records := allRecords[s.SentCount():]
-	for _, record := range records {
-		res, err := resourceadapter.NewEffect(ctx, record, ledgers[record.LedgerSequence()])
-		if err != nil {
-			return errors.Wrap(err, "could not create effect")
-		}
-		s.Send(sse.Event{ID: res.PagingToken(), Data: res})
-	}
-
-	return nil
+// EffectsQuery query struct for effects end-points
+type EffectsQuery struct {
+	AccountID   string `schema:"account_id" valid:"accountID,optional"`
+	OperationID int64  `schema:"op_id" valid:"-"`
+	TxHash      string `schema:"tx_id" valid:"-"`
+	LedgerID    int32  `schema:"ledger_id" valid:"ledgerID,optional"`
 }
 
-// EffectsPage returns a page containing the transaction records of an
-// account/operation/transaction/ledger identified by identified by accountID/operationID/transactionHash/ledgerID
-// into a page, based on pq.
-func EffectsPage(ctx context.Context, hq *history.Q,
-	accountID string, operationID int64, transactionHash string, ledgerID int32, pq db2.PageQuery) (hal.Page, error) {
-	records, err := loadEffectRecords(hq, accountID, operationID, transactionHash, ledgerID, pq)
+type GetEffectsHandler struct{}
+
+func (handler GetEffectsHandler) GetResourcePage(w HeaderWriter, r *http.Request) ([]hal.Pageable, error) {
+	pq, err := GetPageQuery(r)
 	if err != nil {
-		return hal.Page{}, errors.Wrap(err, "loading transaction records")
+		return nil, err
 	}
 
-	page := hal.Page{
-		Cursor: pq.Cursor,
-		Order:  pq.Order,
-		Limit:  pq.Limit,
-	}
-
-	ledgers, err := loadEffectLedgers(hq, records)
+	err = ValidateCursorWithinHistory(pq)
 	if err != nil {
-		return hal.Page{}, errors.Wrap(err, "loading ledgers")
+		return nil, err
 	}
 
+	qp := EffectsQuery{}
+	err = GetParams(&qp, r)
+	if err != nil {
+		return nil, err
+	}
+
+	historyQ, err := HistoryQFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := loadEffectRecords(historyQ, qp.AccountID, qp.OperationID, qp.TxHash, qp.LedgerID, pq)
+	if err != nil {
+		return nil, errors.Wrap(err, "loading transaction records")
+	}
+
+	ledgers, err := loadEffectLedgers(historyQ, records)
+	if err != nil {
+		return nil, errors.Wrap(err, "loading ledgers")
+	}
+
+	var result []hal.Pageable
 	for _, record := range records {
-		res, err := resourceadapter.NewEffect(ctx, record, ledgers[record.LedgerSequence()])
+		effect, err := resourceadapter.NewEffect(r.Context(), record, ledgers[record.LedgerSequence()])
 		if err != nil {
-			return hal.Page{}, errors.Wrap(err, "could not create effect")
+			return nil, errors.Wrap(err, "could not create effect")
 		}
-		page.Add(res)
+		result = append(result, effect)
 	}
 
-	page.FullURL = FullURL(ctx)
-	page.PopulateLinks()
-	return page, nil
+	return result, nil
 }
 
 func loadEffectRecords(hq *history.Q, accountID string, operationID int64, transactionHash string, ledgerID int32,

@@ -899,15 +899,6 @@ func CountNonEmpty(params ...interface{}) (int, error) {
 	return count, nil
 }
 
-func IsValidTransactionHash(hash string) bool {
-	decoded, err := hex.DecodeString(hash)
-	if err != nil {
-		return false
-	}
-
-	return len(decoded) == 32
-}
-
 // ValidateCursorWithinHistory compares the requested page of data against the
 // ledger state of the history database.  In the event that the cursor is
 // guaranteed to return no results, we return a 410 GONE http response.

@@ -216,10 +216,10 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 	// emptiness. Without it, requesting `/accounts//payments` return all payments!
 	r.Group(func(r chi.Router) {
 		r.Get("/accounts/{account_id:\\w+}/transactions", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
-		r.Get("/accounts/{account_id:\\w+}/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 		r.Get("/accounts/{account_id:\\w+}/trades", TradeIndexAction{}.Handle)
 		r.Group(func(r chi.Router) {
 			r.Use(historyMiddleware)
+			r.Method(http.MethodGet, "/accounts/{account_id:\\w+}/effects", streamablePageHandler(actions.GetEffectsHandler{}, streamHandler))
 			r.Method(http.MethodGet, "/accounts/{account_id:\\w+}/operations", streamablePageHandler(actions.GetOperationsHandler{
 				IngestingFailedTransactions: w.ingestFailedTx,
 				OnlyPayments:                false,
@@ -236,9 +236,9 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 		r.Route("/{ledger_id}", func(r chi.Router) {
 			r.Get("/", LedgerShowAction{}.Handle)
 			r.Get("/transactions", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
-			r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 			r.Group(func(r chi.Router) {
 				r.Use(historyMiddleware)
+				r.Method(http.MethodGet, "/effects", streamablePageHandler(actions.GetEffectsHandler{}, streamHandler))
 				r.Method(http.MethodGet, "/operations", streamablePageHandler(actions.GetOperationsHandler{
 					IngestingFailedTransactions: w.ingestFailedTx,
 					OnlyPayments:                false,
@@ -256,9 +256,9 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 		r.Get("/", w.streamIndexActionHandler(w.getTransactionPage, w.streamTransactions))
 		r.Route("/{tx_id}", func(r chi.Router) {
 			r.Get("/", showActionHandler(w.getTransactionResource))
-			r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
 			r.Group(func(r chi.Router) {
 				r.Use(historyMiddleware)
+				r.Method(http.MethodGet, "/effects", streamablePageHandler(actions.GetEffectsHandler{}, streamHandler))
 				r.Method(http.MethodGet, "/operations", streamablePageHandler(actions.GetOperationsHandler{
 					IngestingFailedTransactions: w.ingestFailedTx,
 					OnlyPayments:                false,
@@ -273,23 +273,29 @@ func (w *web) mustInstallActions(config Config, pathFinder paths.Finder, session
 
 	// operation actions
 	r.Route("/operations", func(r chi.Router) {
-		r.With(historyMiddleware).Method(http.MethodGet, "/", streamablePageHandler(actions.GetOperationsHandler{
-			IngestingFailedTransactions: w.ingestFailedTx,
-			OnlyPayments:                false,
-		}, streamHandler))
+		r.Group(func(r chi.Router) {
+			r.Use(historyMiddleware)
+			r.Method(http.MethodGet, "/", streamablePageHandler(actions.GetOperationsHandler{
+				IngestingFailedTransactions: w.ingestFailedTx,
+				OnlyPayments:                false,
+			}, streamHandler))
+			r.Method(http.MethodGet, "/{op_id}/effects", streamablePageHandler(actions.GetEffectsHandler{}, streamHandler))
+		})
 		r.Get("/{id}", OperationShowAction{}.Handle)
-		r.Get("/{op_id}/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
+
 	})
 
 	r.Group(func(r chi.Router) {
-		// payment actions
-		r.With(historyMiddleware).Method(http.MethodGet, "/payments", streamablePageHandler(actions.GetOperationsHandler{
-			IngestingFailedTransactions: w.ingestFailedTx,
-			OnlyPayments:                true,
-		}, streamHandler))
-
-		// effect actions
-		r.Get("/effects", w.streamIndexActionHandler(w.getEffectsPage, w.streamEffects))
+		r.Group(func(r chi.Router) {
+			r.Use(historyMiddleware)
+			// payment actions
+			r.Method(http.MethodGet, "/payments", streamablePageHandler(actions.GetOperationsHandler{
+				IngestingFailedTransactions: w.ingestFailedTx,
+				OnlyPayments:                true,
+			}, streamHandler))
+			// effect actions
+			r.Method(http.MethodGet, "/effects", streamablePageHandler(actions.GetEffectsHandler{}, streamHandler))
+		})
 
 		// trading related endpoints
 		r.Get("/trades", TradeIndexAction{}.Handle)

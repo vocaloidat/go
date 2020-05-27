@@ -24,6 +24,7 @@ func init() {
 	govalidator.TagMap["assetType"] = govalidator.Validator(isAssetType)
 	govalidator.TagMap["asset"] = govalidator.Validator(isAsset)
 	govalidator.TagMap["transactionHash"] = govalidator.Validator(isTransactionHash)
+	govalidator.TagMap["operationID"] = govalidator.Validator(isOperationID)
 }
 
 var customTagsErrorMessages = map[string]string{

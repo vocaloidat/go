@@ -103,7 +103,7 @@ func TestEffectActions_Index(t *testing.T) {
 		// before history
 		ht.ReapHistory(1)
 		w = ht.Get("/effects?order=desc&cursor=8589938689-1")
-		ht.Assert.Equal(400, w.Code)
+		ht.Assert.Equal(410, w.Code)
 		ht.Logger.Error(w.Body.String())
 	})
 
