@@ -14,9 +14,31 @@ import (
 // EffectsQuery query struct for effects end-points
 type EffectsQuery struct {
 	AccountID   string `schema:"account_id" valid:"accountID,optional"`
-	OperationID int64  `schema:"op_id" valid:"-"`
-	TxHash      string `schema:"tx_id" valid:"-"`
-	LedgerID    int32  `schema:"ledger_id" valid:"ledgerID,optional"`
+	OperationID int64  `schema:"op_id" valid:"operationID,optional"`
+	TxHash      string `schema:"tx_id" valid:"transactionHash,optional"`
+	LedgerID    uint32 `schema:"ledger_id" valid:"-"`
+}
+
+// Validate runs extra validations on query parameters
+func (qp EffectsQuery) Validate() error {
+	count, err := countNonEmpty(
+		qp.AccountID,
+		qp.OperationID,
+		qp.TxHash,
+		qp.LedgerID,
+	)
+
+	if err != nil {
+		return problem.BadRequest
+	}
+
+	if count > 1 {
+		return problem.MakeInvalidFieldProblem(
+			"filters",
+			errors.New("Use a single filter for operations, you can only use one of account_id, op_id, tx_id or ledger_id"),
+		)
+	}
+	return nil
 }
 
 type GetEffectsHandler struct{}
@@ -65,38 +87,24 @@ func (handler GetEffectsHandler) GetResourcePage(w HeaderWriter, r *http.Request
 	return result, nil
 }
 
-func loadEffectRecords(hq *history.Q, accountID string, operationID int64, transactionHash string, ledgerID int32,
+func loadEffectRecords(hq *history.Q, accountID string, operationID int64, transactionHash string, ledgerID uint32,
 	pq db2.PageQuery) ([]history.Effect, error) {
-
-	count, err := CountNonEmpty(
-		accountID,
-		operationID,
-		transactionHash,
-		ledgerID,
-	)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "error in CountNonEmpty")
-	}
-
-	if count > 1 {
-		return nil, problem.BadRequest
-	}
-
 	effects := hq.Effects()
 
 	switch {
 	case accountID != "":
 		effects.ForAccount(accountID)
 	case ledgerID > 0:
-		effects.ForLedger(ledgerID)
+		effects.ForLedger(int32(ledgerID))
 	case operationID > 0:
 		effects.ForOperation(operationID)
 	case transactionHash != "":
 		effects.ForTransaction(transactionHash)
 	}
+
 	var result []history.Effect
-	err = effects.Page(pq).Select(&result)
+	err := effects.Page(pq).Select(&result)
+
 	return result, err
 }
 

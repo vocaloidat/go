@@ -35,13 +35,13 @@ func (qp OperationsQuery) Validate() error {
 	)
 
 	if err != nil {
-		return &problem.BadRequest
+		return problem.BadRequest
 	}
 
 	if filters > 1 {
 		return problem.MakeInvalidFieldProblem(
 			"filters",
-			errors.New("Use a single filter for operations, you can't combine tx_id, account_id, and ledger_id"),
+			errors.New("Use a single filter for operations, you can only use one of tx_id, account_id, and ledger_id"),
 		)
 	}
 
