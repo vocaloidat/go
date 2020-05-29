@@ -35,7 +35,7 @@ func (qp EffectsQuery) Validate() error {
 	if count > 1 {
 		return problem.MakeInvalidFieldProblem(
 			"filters",
-			errors.New("Use a single filter for operations, you can only use one of account_id, op_id, tx_id or ledger_id"),
+			errors.New("Use a single filter for effects, you can only use one of account_id, op_id, tx_id or ledger_id"),
 		)
 	}
 	return nil
