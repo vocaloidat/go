@@ -14,7 +14,7 @@ import (
 // EffectsQuery query struct for effects end-points
 type EffectsQuery struct {
 	AccountID   string `schema:"account_id" valid:"accountID,optional"`
-	OperationID int64  `schema:"op_id" valid:"operationID,optional"`
+	OperationID int64  `schema:"op_id" valid:"-"`
 	TxHash      string `schema:"tx_id" valid:"transactionHash,optional"`
 	LedgerID    uint32 `schema:"ledger_id" valid:"-"`
 }
