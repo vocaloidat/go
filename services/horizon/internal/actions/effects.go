@@ -14,7 +14,7 @@ import (
 // EffectsQuery query struct for effects end-points
 type EffectsQuery struct {
 	AccountID   string `schema:"account_id" valid:"accountID,optional"`
-	OperationID int64  `schema:"op_id" valid:"-"`
+	OperationID uint64 `schema:"op_id" valid:"-"`
 	TxHash      string `schema:"tx_id" valid:"transactionHash,optional"`
 	LedgerID    uint32 `schema:"ledger_id" valid:"-"`
 }
@@ -65,7 +65,7 @@ func (handler GetEffectsHandler) GetResourcePage(w HeaderWriter, r *http.Request
 		return nil, err
 	}
 
-	records, err := loadEffectRecords(historyQ, qp.AccountID, qp.OperationID, qp.TxHash, qp.LedgerID, pq)
+	records, err := loadEffectRecords(historyQ, qp.AccountID, int64(qp.OperationID), qp.TxHash, qp.LedgerID, pq)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading transaction records")
 	}

@@ -930,6 +930,10 @@ func countNonEmpty(params ...interface{}) (int, error) {
 			if param != 0 {
 				count++
 			}
+		case uint64:
+			if param != 0 {
+				count++
+			}
 		case string:
 			if param != "" {
 				count++
