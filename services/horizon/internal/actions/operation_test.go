@@ -386,11 +386,11 @@ func TestGetOperationsFilterByLedgerID(t *testing.T) {
 		},
 		{
 			ledgerID:    "-1",
-			expectedErr: "Ledger ID must be higher than 0",
+			expectedErr: "Ledger ID must be an integer higher than 0",
 		},
 		{
 			ledgerID:    "one",
-			expectedErr: "Ledger ID must be higher than 0",
+			expectedErr: "Ledger ID must be an integer higher than 0",
 		},
 	}
 	for _, tc := range testCases {
@@ -423,6 +423,7 @@ func TestGetOperationsFilterByLedgerID(t *testing.T) {
 		})
 	}
 }
+
 func TestGetOperationsOnlyPayments(t *testing.T) {
 	tt := test.Start(t)
 	defer tt.Finish()
