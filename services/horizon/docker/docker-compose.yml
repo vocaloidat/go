@@ -7,7 +7,8 @@ services:
       - POSTGRES_PASSWORD=mysecretpassword
       - POSTGRES_DB=stellar
     ports:
-      - "5641:5432"
+      - "5641:5641"
+    command: -p 5641
     volumes:
       - "core-db-data:/var/lib/postgresql/data"
     network_mode: '${NETWORK_MODE:-bridge}'
@@ -23,6 +24,9 @@ services:
       - "11625:11625"
       - "11626:11626"
     command: /start
+    environment:
+      - SKIP_START=true
+      - NOPSQL=true
     volumes:
       - ./stellar-core-testnet.cfg:/stellar-core.cfg
       - ./core-start.sh:/start
@@ -43,7 +47,7 @@ services:
   horizon:
     depends_on:
       - horizon-postgres
-      - core
+      #- core
     build:
       # set build context to the root directory of the go monorepo
       context: ../../../
@@ -57,10 +61,14 @@ services:
       - HISTORY_ARCHIVE_URLS=https://history.stellar.org/prd/core-testnet/core_testnet_001
       - NETWORK_PASSPHRASE=Test SDF Network ; September 2015
       - STELLAR_CORE_URL=http://host.docker.internal:11626
+      - STELLAR_CORE_BINARY_PATH=/usr/local/bin/stellar-core
+      - ENABLE_CAPTIVE_CORE_INGESTION=true
       - INGEST=true
       - PER_HOUR_RATE_LIMIT=0
     network_mode: '${NETWORK_MODE:-bridge}'
-    command: ["--apply-migrations"]
+    command: ["db", "reingest", "range", "29944063", "29954111"]
+    #command: ["db", "migrate", "up"]
+    #command: ["--apply-migrations"]
 
 volumes:
   core-db-data:

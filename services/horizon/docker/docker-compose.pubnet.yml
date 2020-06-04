@@ -3,6 +3,9 @@ services:
   core:
     volumes:
       - ./stellar-core-pubnet.cfg:/stellar-core.cfg
+    environment:
+      - HISTORY_ARCHIVE_URLS=https://history.stellar.org/prd/core-live/core_live_001
+      - NETWORK_PASSPHRASE=Public Global Stellar Network ; September 2015      
   horizon:
     environment:
       - HISTORY_ARCHIVE_URLS=https://history.stellar.org/prd/core-live/core_live_001

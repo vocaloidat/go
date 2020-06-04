@@ -7,6 +7,7 @@ import (
 	"context"
 	"sync"
 	"time"
+	"fmt"
 
 	"github.com/rcrowley/go-metrics"
 	"github.com/stellar/go/clients/stellarcore"
@@ -132,6 +133,8 @@ type System struct {
 }
 
 func NewSystem(config Config) (*System, error) {
+
+	fmt.Println("\n\n\nENTERING New System!\n")
 	ctx, cancel := context.WithCancel(context.Background())
 
 	archive, err := historyarchive.Connect(
@@ -150,6 +153,7 @@ func NewSystem(config Config) (*System, error) {
 
 	var ledgerBackend ledgerbackend.LedgerBackend
 	if len(config.StellarCorePath) > 0 {
+		fmt.Println("\n\n\n\nUSING CAPTIVE CORE!")
 		ledgerBackend = ledgerbackend.NewCaptive(
 			config.StellarCorePath,
 			config.NetworkPassphrase,
