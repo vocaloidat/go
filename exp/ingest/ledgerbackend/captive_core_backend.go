@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+
 	"github.com/stellar/go/network"
 	"github.com/stellar/go/support/historyarchive"
 	"github.com/stellar/go/xdr"
