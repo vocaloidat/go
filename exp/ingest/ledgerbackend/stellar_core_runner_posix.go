@@ -50,7 +50,7 @@ func (c *stellarCoreRunner) start() error {
 	cmd := c.cmd
 	go cmd.Wait()
 
-	res, err := readahead.NewReaderSize(readFile, 4, 1024*1024)
+	res, err := readahead.NewReaderSize(readFile, 16, 1024*64)
 	c.metaPipe = res
 	return err
 }

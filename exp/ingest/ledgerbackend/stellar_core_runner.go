@@ -109,7 +109,7 @@ func (r *stellarCoreRunner) run(from, to uint32) error {
 	args := []string{"--conf", r.getConfFileName(), "catchup", rangeArg, "--replay-in-memory"}
 	cmd := exec.Command(r.executablePath, args...)
 	cmd.Dir = r.getTmpDir()
-	cmd.Stdout = r.getLogLineWriter()
+	// cmd.Stdout = r.getLogLineWriter()
 	cmd.Stderr = cmd.Stdout
 	r.cmd = cmd
 	err = r.start()
