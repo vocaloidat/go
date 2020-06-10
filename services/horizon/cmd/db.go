@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"go/types"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 
@@ -124,7 +126,7 @@ var dbReingestCmd = &cobra.Command{
 
 var reingestForce bool
 var reingestRangeCmdOpts = []*support.ConfigOption{
-	&support.ConfigOption{
+	{
 		Name:        "force",
 		ConfigKey:   &reingestForce,
 		OptType:     types.Bool,
@@ -140,6 +142,17 @@ var dbReingestRangeCmd = &cobra.Command{
 	Short: "reingests ledgers within a range",
 	Long:  "reingests ledgers between X and Y sequence number (closed intervals)",
 	Run: func(cmd *cobra.Command, args []string) {
+		go func() {
+			debugport := 8001
+			hlog.Infof("Starting debug server at: %d", debugport)
+			err := http.ListenAndServe(
+				fmt.Sprintf("localhost:%d", debugport),
+				nil,
+			)
+			if err != nil {
+				hlog.Error(err)
+			}
+		}()
 		for _, co := range reingestRangeCmdOpts {
 			co.Require()
 			co.SetValue()
