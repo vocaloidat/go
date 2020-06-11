@@ -51,6 +51,11 @@ type captiveStellarCore struct {
 	historyURLs       []string
 	lastLedger        *uint32 // end of current segment if offline, nil if online
 
+	// read-ahead buffer
+	stop  chan struct{}
+	metaC chan *xdr.LedgerCloseMeta
+	errC  chan error
+
 	stellarCoreRunner stellarCoreRunnerInterface
 
 	nextLedgerMutex sync.Mutex
@@ -159,7 +164,43 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 	c.nextLedger = roundDownToFirstReplayAfterCheckpointStart(nextLedger)
 	c.nextLedgerMutex.Unlock()
 	c.lastLedger = &lastLedger
+
+	c.metaC = make(chan *xdr.LedgerCloseMeta, 2000)
+	c.errC = make(chan error)
+	c.stop = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-c.stop:
+				return
+			default:
+				meta, err := c.readLedgerMetaFromPipe()
+				if err != nil {
+					c.errC <- err
+					return
+				}
+				c.metaC <- meta
+			}
+		}
+	}()
 	return nil
+}
+
+func (c *captiveStellarCore) readLedgerMetaFromPipe() (*xdr.LedgerCloseMeta, error) {
+	metaPipe := c.stellarCoreRunner.getMetaPipe()
+	if metaPipe == nil {
+		return nil, errors.New("missing metadata pipe")
+	}
+	var xlcm xdr.LedgerCloseMeta
+	_, e0 := xdr.UnmarshalFramed(metaPipe, &xlcm)
+	if e0 != nil {
+		if e0 == io.EOF {
+			return nil, errors.Wrap(e0, "got EOF from subprocess")
+		} else {
+			return nil, errors.Wrap(e0, "unmarshalling framed LedgerCloseMeta")
+		}
+	}
+	return &xlcm, nil
 }
 
 func (c *captiveStellarCore) PrepareRange(from uint32, to uint32) error {
@@ -207,27 +248,19 @@ func (c *captiveStellarCore) GetLedger(sequence uint32) (bool, LedgerCloseMeta, 
 		return false, LedgerCloseMeta{}, errors.New("unexpected subprocess next-ledger")
 	}
 
-	// ... and open
-	metaPipe := c.stellarCoreRunner.getMetaPipe()
-	if metaPipe == nil {
-		return false, LedgerCloseMeta{}, errors.New("missing metadata pipe")
-	}
-
 	// Now loop along the range until we find the ledger we want.
 	var errOut error
+loop:
 	for {
-		var xlcm xdr.LedgerCloseMeta
-		_, e0 := xdr.UnmarshalFramed(metaPipe, &xlcm)
-		if e0 != nil {
-			if e0 == io.EOF {
-				errOut = errors.Wrap(e0, "got EOF from subprocess")
-				break
-			} else {
-				errOut = errors.Wrap(e0, "unmarshalling framed LedgerCloseMeta")
-				break
-			}
+		var xlcm *xdr.LedgerCloseMeta
+		select {
+		case err := <-c.errC:
+			errOut = err
+			break loop
+		case xlcm = <-c.metaC:
 		}
-		seq, e1 := peekLedgerSequence(&xlcm)
+
+		seq, e1 := peekLedgerSequence(xlcm)
 		if e1 != nil {
 			errOut = e1
 			break
@@ -244,7 +277,7 @@ func (c *captiveStellarCore) GetLedger(sequence uint32) (bool, LedgerCloseMeta, 
 		if seq == sequence {
 			// Found the requested seq
 			var lcm LedgerCloseMeta
-			e2 := c.copyLedgerCloseMeta(&xlcm, &lcm)
+			e2 := c.copyLedgerCloseMeta(xlcm, &lcm)
 			if e2 != nil {
 				errOut = e2
 				break
@@ -300,6 +333,16 @@ func (c *captiveStellarCore) Close() error {
 	c.nextLedgerMutex.Lock()
 	c.nextLedger = 0
 	c.nextLedgerMutex.Unlock()
+
+	if c.stop != nil {
+		close(c.stop)
+	}
+	if c.metaC != nil {
+		close(c.metaC)
+	}
+	if c.errC != nil {
+		close(c.errC)
+	}
 
 	c.lastLedger = nil
 
