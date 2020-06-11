@@ -165,7 +165,7 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 	c.nextLedgerMutex.Unlock()
 	c.lastLedger = &lastLedger
 
-	c.metaC = make(chan *xdr.LedgerCloseMeta, 2000)
+	c.metaC = make(chan *xdr.LedgerCloseMeta, 1000)
 	c.errC = make(chan error)
 	c.stop = make(chan struct{})
 	go func() {
