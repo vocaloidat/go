@@ -170,7 +170,7 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 	c.lastLedger = &lastLedger
 
 	// read-ahead buffer
-	c.metaC = make(chan *xdr.LedgerCloseMeta, 1000)
+	c.metaC = make(chan *xdr.LedgerCloseMeta, 2)
 	c.errC = make(chan error)
 	c.stop = make(chan struct{})
 	go c.sendLedgerMeta(lastLedger)
