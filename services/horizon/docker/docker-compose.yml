@@ -45,8 +45,8 @@ services:
     network_mode: '${NETWORK_MODE:-bridge}'
 
   horizon:
-    depends_on:
-      - horizon-postgres
+    #depends_on:
+      #- horizon-postgres
       #- core
     build:
       # set build context to the root directory of the go monorepo
@@ -55,8 +55,10 @@ services:
     restart: on-failure
     ports:
       - "8000:8000"
+      - "8001:8001"
     environment:
-      - DATABASE_URL=postgres://postgres@host.docker.internal:5432/horizon?sslmode=disable
+      # - DATABASE_URL=postgres://postgres@host.docker.internal:5432/horizon?sslmode=disable
+      - DATABASE_URL=postgres://postgres:yL15LwgWSkGm@horizon-captive-core-experiment-fons.cmsk9uo5u6im.us-east-1.rds.amazonaws.com:5432/horizon
       - STELLAR_CORE_DATABASE_URL=postgres://postgres:mysecretpassword@host.docker.internal:5641/stellar?sslmode=disable
       - HISTORY_ARCHIVE_URLS=https://history.stellar.org/prd/core-testnet/core_testnet_001
       - NETWORK_PASSPHRASE=Test SDF Network ; September 2015
@@ -66,8 +68,8 @@ services:
       - INGEST=true
       - PER_HOUR_RATE_LIMIT=0
     network_mode: '${NETWORK_MODE:-bridge}'
-    command: ["db", "reingest", "range", "29944063", "29954111"]
-    #command: ["db", "migrate", "up"]
+    command: ["db", "reingest", "range", "20064319", "20084415"]
+    # command: ["db", "migrate", "up"]
     #command: ["--apply-migrations"]
 
 volumes:
