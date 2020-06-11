@@ -165,25 +165,39 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 	c.nextLedgerMutex.Unlock()
 	c.lastLedger = &lastLedger
 
+	// read-ahead buffer
 	c.metaC = make(chan *xdr.LedgerCloseMeta, 1000)
 	c.errC = make(chan error)
 	c.stop = make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-c.stop:
+	go c.sendLedgerMeta(lastLedger)
+	return nil
+}
+
+// sendLedgerMeta reads from the captive core pipe, decodes the ledger metadata
+// and sends it to the metadata buffered channel
+func (c *captiveStellarCore) sendLedgerMeta(untilSequence uint32) {
+	for {
+		select {
+		case <-c.stop:
+			return
+		default:
+			meta, err := c.readLedgerMetaFromPipe()
+			if err != nil {
+				c.errC <- err
 				return
-			default:
-				meta, err := c.readLedgerMetaFromPipe()
-				if err != nil {
-					c.errC <- err
-					return
-				}
-				c.metaC <- meta
+			}
+			c.metaC <- meta
+			seq, err := peekLedgerSequence(meta)
+			if err != nil {
+				c.errC <- err
+				return
+			}
+			if seq >= untilSequence {
+				// we are done
+				return
 			}
 		}
-	}()
-	return nil
+	}
 }
 
 func (c *captiveStellarCore) readLedgerMetaFromPipe() (*xdr.LedgerCloseMeta, error) {
@@ -253,6 +267,8 @@ func (c *captiveStellarCore) GetLedger(sequence uint32) (bool, LedgerCloseMeta, 
 loop:
 	for {
 		var xlcm *xdr.LedgerCloseMeta
+		// TODO: in online mode, there is no need to use channels
+		//       (read ahead buffer) we can use
 		select {
 		case err := <-c.errC:
 			errOut = err
