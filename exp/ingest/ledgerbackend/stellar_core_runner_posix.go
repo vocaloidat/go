@@ -3,10 +3,10 @@
 package ledgerbackend
 
 import (
+	"bufio"
 	"os"
 	"syscall"
 
-	"github.com/klauspost/readahead"
 	"github.com/pkg/errors"
 )
 
@@ -50,9 +50,8 @@ func (c *stellarCoreRunner) start() error {
 	cmd := c.cmd
 	go cmd.Wait()
 
-	res, err := readahead.NewReaderSize(readFile, 40, 1024*1024)
-	c.metaPipe = res
-	return err
+	c.metaPipe = bufio.NewReaderSize(readFile, 1024*1024)
+	return nil
 }
 
 func (c *stellarCoreRunner) processIsAlive() bool {
