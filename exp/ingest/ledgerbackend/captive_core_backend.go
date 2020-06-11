@@ -1,8 +1,11 @@
 package ledgerbackend
 
 import (
+	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -52,9 +55,10 @@ type captiveStellarCore struct {
 	lastLedger        *uint32 // end of current segment if offline, nil if online
 
 	// read-ahead buffer
-	stop  chan struct{}
-	metaC chan *xdr.LedgerCloseMeta
-	errC  chan error
+	readBufferOccupation uint32
+	stop                 chan struct{}
+	metaC                chan *xdr.LedgerCloseMeta
+	errC                 chan error
 
 	stellarCoreRunner stellarCoreRunnerInterface
 
@@ -176,10 +180,15 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 // sendLedgerMeta reads from the captive core pipe, decodes the ledger metadata
 // and sends it to the metadata buffered channel
 func (c *captiveStellarCore) sendLedgerMeta(untilSequence uint32) {
+	printBufferOccupation := time.NewTicker(5 * time.Second)
+	defer printBufferOccupation.Stop()
 	for {
 		select {
 		case <-c.stop:
 			return
+		case <-printBufferOccupation.C:
+			// TODO: use a logger in debug mode
+			fmt.Println("captive core read-ahead buffer occupation:", atomic.LoadUint32(&c.readBufferOccupation))
 		default:
 			meta, err := c.readLedgerMetaFromPipe()
 			if err != nil {
@@ -187,6 +196,7 @@ func (c *captiveStellarCore) sendLedgerMeta(untilSequence uint32) {
 				return
 			}
 			c.metaC <- meta
+			atomic.AddUint32(&c.readBufferOccupation, 1)
 			seq, err := peekLedgerSequence(meta)
 			if err != nil {
 				c.errC <- err
@@ -274,6 +284,8 @@ loop:
 			errOut = err
 			break loop
 		case xlcm = <-c.metaC:
+			// decrement counter
+			atomic.AddUint32(&c.readBufferOccupation, ^uint32(0))
 		}
 
 		seq, e1 := peekLedgerSequence(xlcm)
