@@ -298,25 +298,30 @@ func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLe
 	commitParametersC := make(chan commitWorkerParameters, 1)
 	resultC := make(chan io.StatsLedgerTransactionProcessorResults)
 	stop := make(chan struct{})
-	errC := make(chan error, 1)
+	errC := make(chan error)
 
 	var wait sync.WaitGroup
 
 	doneOnce := sync.Once{}
 	done := func(err error) {
 		doneOnce.Do(func() {
-			errC <- err
-			close(stop)
-			wait.Wait()
-			close(readerC)
-			close(commitParametersC)
+			// use a separate go routine to avoid deadlocks when calling wait.Wait()
+			go func() {
+				close(stop)
+				// wait for everything to stop before we close and send the return value
+				wait.Wait()
+				close(readerC)
+				close(commitParametersC)
+				errC <- err
+			}()
 		})
 	}
+
+	// TODO: better handling of wait.Done() (which is sprinkled around to make sure its called before done())
 
 	// workers
 
 	createReaders := func() {
-		wait.Add(1)
 		defer wait.Done()
 		for i := fromLedger; i <= toLedger; i++ {
 			ledgerReader, err := io.NewDBLedgerReader(s.ctx, i, s.ledgerBackend)
@@ -333,7 +338,6 @@ func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLe
 	}
 
 	streamTransactions := func() {
-		wait.Add(1)
 		defer wait.Done()
 		for {
 			var ledgerReader io.LedgerReader
@@ -360,7 +364,6 @@ func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLe
 
 	// Commits cannot happen in parallel. Thus, we only create a worker
 	commit := func() {
-		wait.Add(1)
 		defer wait.Done()
 		for i := fromLedger; i < toLedger; i++ {
 			select {
@@ -380,6 +383,7 @@ func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLe
 	}
 
 	// spawn workers
+	wait.Add(numWorkers + 1 + 1)
 	go createReaders()
 	for i := 0; i < numWorkers; i++ {
 		go streamTransactions()

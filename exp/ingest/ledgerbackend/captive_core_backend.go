@@ -258,6 +258,7 @@ func (c *captiveStellarCore) PrepareRange(from uint32, to uint32) error {
 // the implicit start ledger, so we might need to skip a few ledgers until
 // we hit the one requested (this routine does so transparently if needed).
 func (c *captiveStellarCore) GetLedger(sequence uint32) (bool, LedgerCloseMeta, error) {
+	// fmt.Printf("GetLedger(%d)\n", sequence)
 	// First, if we're open but out of range for the request, close.
 	if !c.IsClosed() && !c.LedgerWithinCheckpoints(sequence, numCheckpointsLeeway) {
 		c.Close()
@@ -296,6 +297,7 @@ loop:
 			errOut = e1
 			break
 		}
+		// fmt.Printf("Got ledger(%d)\n", seq)
 		c.nextLedgerMutex.Lock()
 		if seq != c.nextLedger {
 			// We got something unexpected; close and reset
