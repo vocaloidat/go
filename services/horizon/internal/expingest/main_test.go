@@ -420,6 +420,11 @@ func (m *mockProcessorsRunner) RunTransactionProcessorsOnLedger(sequence uint32)
 	return args.Get(0).(io.StatsLedgerTransactionProcessorResults), args.Error(1)
 }
 
+func (m *mockProcessorsRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLedger, toLedger uint32) (chan io.StatsLedgerTransactionProcessorResults, chan error) {
+	args := m.Called(fromLedger, toLedger)
+	return args.Get(0).(chan io.StatsLedgerTransactionProcessorResults), args.Get(1).(chan error)
+}
+
 func (m *mockProcessorsRunner) RunOrderBookProcessorOnLedger(sequence uint32) (io.StatsChangeProcessorResults, error) {
 	args := m.Called(sequence)
 	return args.Get(0).(io.StatsChangeProcessorResults), args.Error(1)

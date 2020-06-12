@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"runtime"
+	"sync"
 
 	"github.com/stellar/go/exp/ingest/adapters"
 	"github.com/stellar/go/exp/ingest/io"
@@ -53,6 +55,7 @@ type ProcessorRunnerInterface interface {
 	DisableMemoryStatsLogging()
 	RunHistoryArchiveIngestion(checkpointLedger uint32) (io.StatsChangeProcessorResults, error)
 	RunTransactionProcessorsOnLedger(sequence uint32) (io.StatsLedgerTransactionProcessorResults, error)
+	RunTransactionProcessorsInParallelOnLedgerRange(fromLedger, toLedger uint32) (chan io.StatsLedgerTransactionProcessorResults, chan error)
 	RunOrderBookProcessorOnLedger(sequence uint32) (io.StatsChangeProcessorResults, error)
 	RunAllProcessorsOnLedger(sequence uint32) (
 		io.StatsChangeProcessorResults,
@@ -281,6 +284,109 @@ func (s *ProcessorRunner) RunTransactionProcessorsOnLedger(ledger uint32) (io.St
 	}
 
 	return ledgerTransactionStats.GetResults(), nil
+}
+
+// The consumer is responsible for closing both channels. You should always read a single value from the error channel (the value will be nil if everything went well)
+func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLedger, toLedger uint32) (chan io.StatsLedgerTransactionProcessorResults, chan error) {
+	// TODO, tweak the number of workers (maybe make it a parameter)
+	numWorkers := runtime.NumCPU()
+	readerC := make(chan io.LedgerReader, numWorkers+1)
+	type commitWorkerParameters struct {
+		horizonTransactionProcessor
+		*io.StatsLedgerTransactionProcessor
+	}
+	commitParametersC := make(chan commitWorkerParameters, 1)
+	resultC := make(chan io.StatsLedgerTransactionProcessorResults)
+	stop := make(chan struct{})
+	errC := make(chan error, 1)
+
+	var wait sync.WaitGroup
+
+	doneOnce := sync.Once{}
+	done := func(err error) {
+		doneOnce.Do(func() {
+			errC <- err
+			close(stop)
+			wait.Wait()
+			close(readerC)
+			close(commitParametersC)
+		})
+	}
+
+	// workers
+
+	createReaders := func() {
+		wait.Add(1)
+		defer wait.Done()
+		for i := fromLedger; i <= toLedger; i++ {
+			ledgerReader, err := io.NewDBLedgerReader(s.ctx, i, s.ledgerBackend)
+			if err != nil {
+				done(errors.Wrap(err, "Error creating ledger reader"))
+				return
+			}
+			select {
+			case <-stop:
+				return
+			case readerC <- ledgerReader:
+			}
+		}
+	}
+
+	streamTransactions := func() {
+		wait.Add(1)
+		defer wait.Done()
+		for {
+			var ledgerReader io.LedgerReader
+			ledgerTransactionStats := io.StatsLedgerTransactionProcessor{}
+			select {
+			case <-stop:
+				return
+			case ledgerReader = <-readerC:
+			}
+			txProcessor := s.buildTransactionProcessor(&ledgerTransactionStats, ledgerReader.GetHeader())
+			err := io.StreamLedgerTransactions(txProcessor, ledgerReader)
+			if err != nil {
+				done(errors.Wrap(err, "Error streaming changes from ledger"))
+				return
+			}
+			select {
+			case <-stop:
+				return
+			case commitParametersC <- commitWorkerParameters{txProcessor, &ledgerTransactionStats}:
+
+			}
+		}
+	}
+
+	// Commits cannot happen in parallel. Thus, we only create a worker
+	commit := func() {
+		wait.Add(1)
+		defer wait.Done()
+		for i := fromLedger; i < toLedger; i++ {
+			select {
+			case <-stop:
+				return
+			case parameters := <-commitParametersC:
+				err := parameters.horizonTransactionProcessor.Commit()
+				if err != nil {
+					done(errors.Wrap(err, "Error committing changes from processor"))
+					return
+				}
+				resultC <- parameters.StatsLedgerTransactionProcessor.GetResults()
+			}
+		}
+		// success
+		done(nil)
+	}
+
+	// spawn workers
+	go createReaders()
+	for i := 0; i < numWorkers; i++ {
+		go streamTransactions()
+	}
+	go commit()
+
+	return resultC, errC
 }
 
 func (s *ProcessorRunner) RunAllProcessorsOnLedger(ledger uint32) (io.StatsChangeProcessorResults, io.StatsLedgerTransactionProcessorResults, error) {

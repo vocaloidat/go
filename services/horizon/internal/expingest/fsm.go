@@ -581,6 +581,33 @@ func runTransactionProcessorsOnLedger(s *System, ledger uint32) error {
 	return nil
 }
 
+func runParallelTransactionProcessorsOnLedgers(s *System, fromLedger uint32, toLedger uint32) error {
+
+	ledgerTransactionStatsC, errC := s.runner.RunTransactionProcessorsInParallelOnLedgerRange(fromLedger, toLedger)
+	defer close(ledgerTransactionStatsC)
+	defer close(errC)
+	for {
+		select {
+		case err := <-errC:
+			// TODO: print the ledger sequence
+			// return errors.Wrap(err, fmt.Sprintf("error processing ledger sequence=%d", ledger))
+			return err
+		case ledgerTransactionStats := <-ledgerTransactionStatsC:
+			log.
+				WithFields(ledgerTransactionStats.Map()).
+				WithFields(logpkg.F{
+					// "sequence": ledger,
+					//"duration": time.Since(startTime).Seconds(),
+					"state":  false,
+					"ledger": true,
+					"graph":  false,
+					"commit": false,
+				}).
+				Info("Processed ledger")
+		}
+	}
+}
+
 type reingestHistoryRangeState struct {
 	fromLedger uint32
 	toLedger   uint32
@@ -615,13 +642,14 @@ func (h reingestHistoryRangeState) ingestRange(s *System, fromLedger, toLedger u
 		return errors.Wrap(err, "error in DeleteRangeAll")
 	}
 
-	for cur := fromLedger; cur <= toLedger; cur++ {
-		if err = runTransactionProcessorsOnLedger(s, cur); err != nil {
-			return err
-		}
-	}
+	return runParallelTransactionProcessorsOnLedgers(s, fromLedger, toLedger)
+	// for cur := fromLedger; cur <= toLedger; cur++ {
+	//	if err = runTransactionProcessorsOnLedger(s, cur); err != nil {
+	//		return err
+	//	}
+	// }
 
-	return nil
+	// return nil
 }
 
 // reingestHistoryRangeState is used as a command to reingest historical data
