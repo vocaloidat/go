@@ -365,7 +365,7 @@ func (s *ProcessorRunner) RunTransactionProcessorsInParallelOnLedgerRange(fromLe
 	// Commits cannot happen in parallel. Thus, we only create a worker
 	commit := func() {
 		defer wait.Done()
-		for i := fromLedger; i < toLedger; i++ {
+		for i := fromLedger; i <= toLedger; i++ {
 			select {
 			case <-stop:
 				return

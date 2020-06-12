@@ -586,13 +586,17 @@ func runParallelTransactionProcessorsOnLedgers(s *System, fromLedger uint32, toL
 	ledgerTransactionStatsC, errC := s.runner.RunTransactionProcessorsInParallelOnLedgerRange(fromLedger, toLedger)
 	defer close(ledgerTransactionStatsC)
 	defer close(errC)
-	for {
+	var err error
+	var errReceived bool
+	for i := fromLedger; i <= toLedger || !errReceived; {
 		select {
-		case err := <-errC:
-			// TODO: print the ledger sequence
-			// return errors.Wrap(err, fmt.Sprintf("error processing ledger sequence=%d", ledger))
-			return err
+		case err = <-errC:
+			errReceived = true
+			if err != nil {
+				return err
+			}
 		case ledgerTransactionStats := <-ledgerTransactionStatsC:
+			i++
 			log.
 				WithFields(ledgerTransactionStats.Map()).
 				WithFields(logpkg.F{
@@ -606,6 +610,7 @@ func runParallelTransactionProcessorsOnLedgers(s *System, fromLedger uint32, toL
 				Info("Processed ledger")
 		}
 	}
+	return err
 }
 
 type reingestHistoryRangeState struct {
