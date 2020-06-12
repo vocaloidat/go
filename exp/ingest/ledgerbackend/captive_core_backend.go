@@ -57,6 +57,7 @@ type captiveStellarCore struct {
 	// read-ahead buffer
 	readBufferOccupation uint32
 	stop                 chan struct{}
+	wait                 sync.WaitGroup
 	metaC                chan *xdr.LedgerCloseMeta
 	errC                 chan error
 
@@ -180,6 +181,8 @@ func (c *captiveStellarCore) openOfflineReplaySubprocess(nextLedger, lastLedger 
 // sendLedgerMeta reads from the captive core pipe, decodes the ledger metadata
 // and sends it to the metadata buffered channel
 func (c *captiveStellarCore) sendLedgerMeta(untilSequence uint32) {
+	c.wait.Add(1)
+	defer c.wait.Done()
 	printBufferOccupation := time.NewTicker(5 * time.Second)
 	defer printBufferOccupation.Stop()
 	for {
@@ -364,6 +367,9 @@ func (c *captiveStellarCore) Close() error {
 
 	if c.stop != nil {
 		close(c.stop)
+		// Do not close the other channels until we know
+		// the goroutine is done
+		c.wait.Wait()
 	}
 	if c.metaC != nil {
 		close(c.metaC)
